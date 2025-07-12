@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webデザイナー向けAIメモ帳（機能強化版）</title>
+    <title>Webデザイナー向けAIメモ帳（プロジェクト名・未分類削除版）</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -118,17 +118,13 @@
             <div class="p-4 border-b border-gray-200">
                 <h1 class="text-2xl font-bold text-blue-600 mb-4">AIメモ帳</h1>
                 
-                <!-- Project Selection -->
+                <!-- Project Filter -->
                 <div class="mb-4">
-                    <label for="project-select" class="block text-sm font-medium text-gray-700 mb-1">プロジェクト:</label>
+                    <label for="project-select" class="block text-sm font-medium text-gray-700 mb-1">プロジェクトで絞り込み:</label>
                     <select id="project-select" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
                         <option value="all">すべてのメモ</option>
-                        <option value="unassigned">未分類</option>
-                        <!-- Projects will be loaded here -->
+                        <!-- Projects will be loaded here dynamically -->
                     </select>
-                    <button id="add-project-btn" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-1.5 px-3 rounded-md shadow-sm transition duration-200 text-sm">
-                        新しいプロジェクトを追加
-                    </button>
                 </div>
 
                 <input type="text" id="search-input" placeholder="キーワード検索..." class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
@@ -144,9 +140,19 @@
         <!-- Main content area for note editing -->
         <div class="flex-1 flex flex-col bg-gray-50 p-6 overflow-hidden">
             <div class="bg-white rounded-lg shadow-xl flex-1 flex flex-col overflow-hidden">
-                <!-- Note title input -->
+                <!-- Note title input - 2 Column Layout -->
                 <div class="p-4 border-b border-gray-200">
-                    <input type="text" id="note-title" placeholder="メモのタイトル" class="w-full text-3xl font-bold text-gray-800 focus:outline-none focus:ring-0">
+                    <div class="flex space-x-4 mb-2">
+                        <div class="w-1/3">
+                            <label for="project-tag-input" class="block text-xs text-gray-500 mb-1">プロジェクト名:</label>
+                            <input type="text" id="project-tag-input" placeholder="プロジェクト名" class="w-full text-lg font-medium text-gray-800 focus:outline-none focus:ring-0 rounded-md border border-gray-300 p-2">
+                        </div>
+                        <div class="w-2/3">
+                            <label for="note-title" class="block text-xs text-gray-500 mb-1">メモのタイトル:</label>
+                            <input type="text" id="note-title" placeholder="メモのタイトル" class="w-full text-lg font-medium text-gray-800 focus:outline-none focus:ring-0 rounded-md border border-gray-300 p-2">
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">例: プロジェクトA デザインレビューメモ</p>
                 </div>
 
                 <!-- Toolbar for text formatting and file management -->
@@ -247,47 +253,47 @@
 
         // IndexedDB setup
         const DB_NAME = 'WebDesignerNotepadDB';
-        const DB_VERSION = 2; // Increment version for schema change (adding projectId)
+        const DB_VERSION = 4; // Increment version for title input split
         const STORE_NOTES = 'notes';
-        const STORE_PROJECTS = 'projects'; // New store for projects
+        const STORE_PROJECTS = 'projects'; // Store for project names and IDs
         let db;
 
         // UI Elements
         const notesList = document.getElementById('notes-list');
         const searchInput = document.getElementById('search-input');
         const newNoteBtn = document.getElementById('new-note-btn');
+        const projectTagInput = document.getElementById('project-tag-input'); // New input for project tag
         const noteTitleInput = document.getElementById('note-title');
         const noteContentDiv = document.getElementById('note-content');
         const saveNoteBtn = document.getElementById('save-note-btn');
         const deleteNoteBtn = document.getElementById('delete-note-btn');
         const boldBtn = document.getElementById('bold-btn');
-        const strikethroughBtn = document.getElementById('strikethrough-btn'); // New
+        const strikethroughBtn = document.getElementById('strikethrough-btn');
         const ulBtn = document.getElementById('ul-btn');
         const olBtn = document.getElementById('ol-btn');
-        const linkBtn = document.getElementById('link-btn'); // New
-        const codeBtn = document.getElementById('code-btn'); // New
+        const linkBtn = document.getElementById('link-btn');
+        const codeBtn = document.getElementById('code-btn');
         const addImageBtn = document.getElementById('add-image-btn');
         const imageUploadInput = document.getElementById('image-upload');
 
         const summarizeBtn = document.getElementById('summarize-btn');
-        const proofreadFormalBtn = document.getElementById('proofread-formal-btn'); // New
-        const proofreadCasualBtn = document.getElementById('proofread-casual-btn'); // New
-        const addEmojiBtn = document.getElementById('add-emoji-btn'); // New
+        const proofreadFormalBtn = document.getElementById('proofread-formal-btn');
+        const proofreadCasualBtn = document.getElementById('proofread-casual-btn');
+        const addEmojiBtn = document.getElementById('add-emoji-btn');
 
-        const projectSelect = document.getElementById('project-select'); // New
-        const addProjectBtn = document.getElementById('add-project-btn'); // New
-        const autoSaveStatus = document.getElementById('auto-save-status'); // New
+        const projectSelect = document.getElementById('project-select');
+        const autoSaveStatus = document.getElementById('auto-save-status');
 
         // Modals
         const loadingModal = document.getElementById('loading-modal');
-        const aiResultModal = document.getElementById('ai-result-modal'); // Unified modal
+        const aiResultModal = document.getElementById('ai-result-modal');
         const closeAiResultModalBtn = document.getElementById('close-ai-result-modal');
         const aiResultTitle = document.getElementById('ai-result-title');
         const aiResultContentDiv = document.getElementById('ai-result-content');
         const copyAiResultBtn = document.getElementById('copy-ai-result-btn');
 
         let currentNoteId = null; // Stores the ID of the currently active note
-        let currentProjectId = 'all'; // Default project filter
+        let currentProjectIdFilter = 'all'; // Default project filter for sidebar
         let autoSaveInterval; // For auto-save functionality
 
         // --- IndexedDB Functions ---
@@ -305,16 +311,11 @@
                     // Create notes store if it doesn't exist or upgrade it
                     if (!db.objectStoreNames.contains(STORE_NOTES)) {
                         db.createObjectStore(STORE_NOTES, { keyPath: 'id', autoIncrement: true });
-                    } else {
-                        // If upgrading from v1, ensure projectId is added
-                        const notesStore = request.transaction.objectStore(STORE_NOTES);
-                        // No direct way to add index if store already exists, need to recreate or iterate
-                        // For simplicity in this example, we'll just ensure projectId is handled in data ops.
                     }
-
                     // Create projects store if it doesn't exist
                     if (!db.objectStoreNames.contains(STORE_PROJECTS)) {
-                        db.createObjectStore(STORE_PROJECTS, { keyPath: 'id', autoIncrement: true });
+                        const projectStore = db.createObjectStore(STORE_PROJECTS, { keyPath: 'id', autoIncrement: true });
+                        projectStore.createIndex('name', 'name', { unique: true }); // Index for project names
                     }
                 };
 
@@ -400,18 +401,29 @@
         }
 
         /**
-         * Adds a new project to the database.
-         * @param {object} project - The project object to add.
-         * @returns {Promise<number>} A promise that resolves with the ID of the new project.
+         * Adds a new project to the database if it doesn't exist.
+         * @param {string} projectName - The name of the project.
+         * @returns {Promise<number>} A promise that resolves with the ID of the project.
          */
-        function addProject(project) {
+        function addOrGetProject(projectName) {
             return new Promise((resolve, reject) => {
                 const transaction = db.transaction([STORE_PROJECTS], 'readwrite');
                 const store = transaction.objectStore(STORE_PROJECTS);
-                const request = store.add(project);
+                const index = store.index('name');
+                const getRequest = index.get(projectName);
 
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
+                getRequest.onsuccess = (event) => {
+                    const project = event.target.result;
+                    if (project) {
+                        resolve(project.id); // Project already exists
+                    } else {
+                        // Add new project
+                        const addRequest = store.add({ name: projectName, createdAt: new Date().toISOString() });
+                        addRequest.onsuccess = (event) => resolve(event.target.result);
+                        addRequest.onerror = (event) => reject(event.target.error);
+                    }
+                };
+                getRequest.onerror = (event) => reject(event.target.error);
             });
         }
 
@@ -437,12 +449,21 @@
          * @param {Array<object>} notes - An array of note objects to display.
          * @param {string} [searchTerm=''] - The current search term for highlighting.
          */
-        function displayNotes(notes, searchTerm = '') {
+        async function displayNotes(notes, searchTerm = '') {
             notesList.innerHTML = '';
-            const filteredByProject = notes.filter(note => {
-                if (currentProjectId === 'all') return true;
-                if (currentProjectId === 'unassigned') return !note.projectId;
-                return note.projectId === currentProjectId;
+            const filteredBySearch = notes.filter(note =>
+                (note.title && note.title.toLowerCase().includes(searchTerm)) ||
+                (note.content && note.content.toLowerCase().includes(searchTerm))
+            );
+
+            const projects = await getProjects();
+            const projectMap = new Map(projects.map(p => [p.id, p.name]));
+
+            const filteredByProject = filteredBySearch.filter(note => {
+                if (currentProjectIdFilter === 'all') return true;
+                // If 'unassigned' option is removed, notes without projectId will only be visible when 'all' is selected.
+                // If currentProjectIdFilter is a project ID, only notes with that projectId are shown.
+                return note.projectId === parseInt(currentProjectIdFilter); // Ensure ID is number
             });
 
             if (filteredByProject.length === 0) {
@@ -455,14 +476,17 @@
                 noteElement.className = 'note-item bg-gray-100 hover:bg-gray-200 p-3 rounded-md cursor-pointer transition duration-200';
                 noteElement.dataset.id = note.id;
 
-                let title = note.title || '無題のメモ';
+                let displayTitle = note.title || '無題のメモ';
+                const projectTag = note.projectId ? `#${projectMap.get(note.projectId)} ` : '';
+                displayTitle = projectTag + displayTitle; // Prepend project tag for display
+
                 if (searchTerm) {
                     const regex = new RegExp(`(${searchTerm})`, 'gi');
-                    title = title.replace(regex, '<mark class="bg-yellow-200 rounded">$1</mark>');
+                    displayTitle = displayTitle.replace(regex, '<mark class="bg-yellow-200 rounded">$1</mark>');
                 }
 
                 noteElement.innerHTML = `
-                    <h3 class="font-semibold text-gray-800 truncate">${title}</h3>
+                    <h3 class="font-semibold text-gray-800 truncate">${displayTitle}</h3>
                     <p class="text-xs text-gray-500">${new Date(note.lastModifiedDate).toLocaleString()}</p>
                 `;
                 noteElement.addEventListener('click', () => loadNote(note.id));
@@ -480,23 +504,30 @@
                 const store = transaction.objectStore(STORE_NOTES);
                 const request = store.get(id);
 
-                request.onsuccess = (event) => {
+                request.onsuccess = async (event) => {
                     const note = event.target.result;
                     if (note) {
                         currentNoteId = note.id;
+                        
+                        // Load actual note title
                         noteTitleInput.value = note.title || '';
+
+                        // Load project tag
+                        if (note.projectId) {
+                            const projects = await getProjects();
+                            const project = projects.find(p => p.id === note.projectId);
+                            if (project) {
+                                projectTagInput.value = project.name; // Display without #
+                            } else {
+                                projectTagInput.value = ''; // Project not found, clear
+                            }
+                        } else {
+                            projectTagInput.value = ''; // No project ID
+                        }
+
                         noteContentDiv.innerHTML = autoLinkUrls(note.content || ''); // Apply URL linking
                         deleteNoteBtn.classList.remove('hidden'); // Show delete button for existing notes
                         saveNoteBtn.textContent = '更新'; // Change save button text to update
-
-                        // Set project dropdown for the loaded note
-                        const projectOption = projectSelect.querySelector(`option[value="${note.projectId}"]`);
-                        if (note.projectId && projectOption) {
-                            projectSelect.value = note.projectId;
-                        } else {
-                            projectSelect.value = 'unassigned'; // Default to unassigned if no project or project not found
-                        }
-                        currentProjectId = projectSelect.value; // Update currentProjectId to reflect loaded note's project
 
                         // Highlight the selected note in the sidebar
                         document.querySelectorAll('.note-item').forEach(item => {
@@ -519,6 +550,7 @@
          */
         function newNote() {
             currentNoteId = null;
+            projectTagInput.value = ''; // Clear project tag input
             noteTitleInput.value = '';
             noteContentDiv.innerHTML = '';
             deleteNoteBtn.classList.add('hidden'); // Hide delete button for new notes
@@ -526,12 +558,6 @@
             document.querySelectorAll('.note-item').forEach(item => {
                 item.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-500');
             });
-            // Set new note's project to currently selected filter if not 'all'
-            if (currentProjectId !== 'all') {
-                projectSelect.value = currentProjectId;
-            } else {
-                projectSelect.value = 'unassigned'; // Default to unassigned for new notes if 'all' is selected
-            }
             noteTitleInput.focus(); // Focus on title for new note
         }
 
@@ -539,15 +565,28 @@
          * Saves or updates the current note.
          */
         async function saveOrUpdateNote() {
-            const title = noteTitleInput.value.trim();
-            const content = noteContentDiv.innerHTML; // Get full HTML content
-            const projectId = projectSelect.value === 'unassigned' ? null : projectSelect.value; // Get selected project ID
+            let projectNameFromInput = projectTagInput.value.trim();
+            let actualNoteTitle = noteTitleInput.value.trim();
+            let projectId = null;
+
+            if (projectNameFromInput) {
+                // No need to remove '#' as it's not in placeholder now
+                try {
+                    projectId = await addOrGetProject(projectNameFromInput);
+                    await loadProjectsIntoFilter(); // Refresh project filter dropdown
+                } catch (error) {
+                    console.error('Failed to handle project:', error);
+                    alert('プロジェクトの処理に失敗しました。');
+                    projectId = null;
+                }
+            }
+
             const now = new Date().toISOString();
 
             const note = {
-                title: title || '無題のメモ',
-                content: content,
-                projectId: projectId, // Assign project ID
+                title: actualNoteTitle || '無題のメモ',
+                content: noteContentDiv.innerHTML,
+                projectId: projectId,
                 lastModifiedDate: now
             };
 
@@ -564,7 +603,7 @@
                     autoSaveStatus.textContent = `自動保存済み: ${new Date().toLocaleTimeString()}`;
                 }
                 await refreshNotesList(); // Refresh sidebar after save/update
-                loadNote(currentNoteId); // Reload the note to show updated content/tags
+                // No need to loadNote here, as auto-save will keep it updated, or manual save is done.
             } catch (error) {
                 console.error('Failed to save/update note:', error);
                 autoSaveStatus.textContent = `保存失敗: ${new Date().toLocaleTimeString()}`;
@@ -574,19 +613,18 @@
 
         /**
          * Deletes the currently loaded note.
+         * @param {number} id - The ID of the note to delete.
+         * @returns {Promise<void>} A promise that resolves when the deletion is complete.
          */
-        async function deleteCurrentNote() {
-            if (currentNoteId && confirm('このメモを本当に削除しますか？')) {
-                try {
-                    await deleteNote(currentNoteId);
-                    console.log('Note deleted:', currentNoteId);
-                    newNote(); // Clear editor after deletion
-                    await refreshNotesList(); // Refresh sidebar
-                } catch (error) {
-                    console.error('Failed to delete note:', error);
-                    alert('メモの削除に失敗しました。');
-                }
-            }
+        function deleteNote(id) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NOTES], 'readwrite');
+                const store = transaction.objectStore(STORE_NOTES);
+                const request = store.delete(id);
+
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject(event.target.error);
+            });
         }
 
         /**
@@ -686,9 +724,9 @@
         }
 
         // --- Project Management ---
-        async function loadProjects() {
+        async function loadProjectsIntoFilter() {
             const projects = await getProjects();
-            projectSelect.innerHTML = '<option value="all">すべてのメモ</option><option value="unassigned">未分類</option>';
+            projectSelect.innerHTML = '<option value="all">すべてのメモ</option>'; // Removed 'unassigned'
             projects.forEach(project => {
                 const option = document.createElement('option');
                 option.value = project.id;
@@ -696,31 +734,14 @@
                 projectSelect.appendChild(option);
             });
             // Set initial project filter based on stored value or default
-            if (localStorage.getItem('currentProjectId')) {
-                currentProjectId = localStorage.getItem('currentProjectId');
-                projectSelect.value = currentProjectId;
+            if (localStorage.getItem('currentProjectIdFilter')) {
+                currentProjectIdFilter = localStorage.getItem('currentProjectIdFilter');
+                projectSelect.value = currentProjectIdFilter;
             } else {
-                currentProjectId = 'all';
+                currentProjectIdFilter = 'all';
                 projectSelect.value = 'all';
             }
             refreshNotesList(); // Refresh notes based on initial project filter
-        }
-
-        async function addNewProject() {
-            const projectName = prompt('新しいプロジェクト名を入力してください:');
-            if (projectName && projectName.trim() !== '') {
-                try {
-                    const newProjectId = await addProject({ name: projectName.trim(), createdAt: new Date().toISOString() });
-                    await loadProjects(); // Reload projects to update dropdown
-                    projectSelect.value = newProjectId; // Select the newly created project
-                    currentProjectId = newProjectId;
-                    refreshNotesList(); // Filter notes by new project
-                    newNote(); // Start a new note in this project
-                } catch (error) {
-                    console.error('Failed to add project:', error);
-                    alert('プロジェクトの追加に失敗しました。');
-                }
-            }
         }
 
         // --- AI Integration (Gemini API) ---
@@ -820,8 +841,9 @@
             // Save every 5 seconds if there's an active note or content in editor
             autoSaveInterval = setInterval(() => {
                 const title = noteTitleInput.value.trim();
+                const projectTag = projectTagInput.value.trim(); // Get project tag value
                 const content = noteContentDiv.innerHTML.trim();
-                if (currentNoteId || title || content) { // Only auto-save if there's an existing note or new content
+                if (currentNoteId || title || projectTag || content) { // Auto-save if any relevant field has content
                     saveOrUpdateNote();
                 }
             }, 5000); // Save every 5 seconds
@@ -838,7 +860,7 @@
         // --- Event Listeners ---
         window.onload = async () => {
             await openDatabase();
-            await loadProjects(); // Load projects first
+            await loadProjectsIntoFilter(); // Load projects into filter dropdown
             await refreshNotesList();
             newNote(); // Start with a new empty note
             startAutoSave(); // Start auto-save when the app loads
@@ -849,21 +871,20 @@
         deleteNoteBtn.addEventListener('click', deleteCurrentNote);
         searchInput.addEventListener('input', refreshNotesList);
 
-        // Project selection
+        // Project filter selection
         projectSelect.addEventListener('change', (event) => {
-            currentProjectId = event.target.value;
-            localStorage.setItem('currentProjectId', currentProjectId); // Remember last selected project
+            currentProjectIdFilter = event.target.value;
+            localStorage.setItem('currentProjectIdFilter', currentProjectIdFilter); // Remember last selected project
             refreshNotesList();
         });
-        addProjectBtn.addEventListener('click', addNewProject);
 
         // Formatting buttons
         boldBtn.addEventListener('click', () => formatText('bold'));
-        strikethroughBtn.addEventListener('click', () => formatText('strikeThrough')); // New strikethrough
+        strikethroughBtn.addEventListener('click', () => formatText('strikeThrough'));
         ulBtn.addEventListener('click', () => formatText('insertUnorderedList'));
         olBtn.addEventListener('click', () => formatText('insertOrderedList'));
-        linkBtn.addEventListener('click', insertLink); // New link
-        codeBtn.addEventListener('click', insertCodeBlock); // New code block
+        linkBtn.addEventListener('click', insertLink);
+        codeBtn.addEventListener('click', insertCodeBlock);
 
         // Image upload
         addImageBtn.addEventListener('click', () => imageUploadInput.click());
